@@ -83,8 +83,12 @@ class ProviderManager:
                 timeout=_PROVIDER_RPC_TIMEOUT,
             )
             latency = time.perf_counter() - start
-            self._metrics.record(provider_name, latency=latency, error="")
-            return response
+            if response.success:
+                self._metrics.record(provider_name, latency=latency, error="")
+                return response
+            self._metrics.record(provider_name, latency=latency, error=response.text or "provider_returned_failure")
+            logger.warning("ProviderManager: '%s' returned success=False: %s", provider_name, response.text[:200] if response.text else "")
+            return await self._try_fallback_chain(messages, **kwargs)
         except Exception as exc:
             latency = time.perf_counter() - start
             error_msg = f"{type(exc).__name__}: {exc}"
@@ -282,9 +286,13 @@ class ProviderManager:
                     timeout=_PROVIDER_RPC_TIMEOUT,
                 )
                 latency = time.perf_counter() - start
-                self._metrics.record(name, latency=latency, error="")
-                logger.info("ProviderManager: fallback chain succeeded with '%s'", name)
-                return response
+                if response.success:
+                    self._metrics.record(name, latency=latency, error="")
+                    logger.info("ProviderManager: fallback chain succeeded with '%s'", name)
+                    return response
+                self._metrics.record(name, latency=latency, error=response.text or "provider_returned_failure")
+                logger.warning("ProviderManager: fallback chain provider '%s' returned success=False: %s", name, response.text[:200] if response.text else "")
+                continue
             except Exception as exc:
                 latency = time.perf_counter() - start
                 self._metrics.record(name, latency=latency, error=str(exc))

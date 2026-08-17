@@ -137,14 +137,23 @@ class OpenAICompatProvider(BaseProvider):
                 for tc in raw_tool_calls:
                     fn = tc.get("function", {})
                     args_raw = fn.get("arguments", "{}")
-                    try:
-                        arguments = json.loads(args_raw) if isinstance(args_raw, str) else args_raw
-                    except (json.JSONDecodeError, TypeError):
-                        arguments = {}
+                    malformed = False
+                    if isinstance(args_raw, str):
+                        try:
+                            arguments = json.loads(args_raw)
+                        except (json.JSONDecodeError, ValueError):
+                            malformed = True
+                            arguments = None
+                    elif isinstance(args_raw, dict):
+                        arguments = args_raw
+                    else:
+                        malformed = True
+                        arguments = None
                     tool_calls.append({
                         "id": tc.get("id", ""),
                         "name": fn.get("name", ""),
-                        "arguments": arguments,
+                        "arguments": arguments if not malformed else {},
+                        "_malformed_arguments": malformed,
                     })
 
                 if not text and finish_reason:

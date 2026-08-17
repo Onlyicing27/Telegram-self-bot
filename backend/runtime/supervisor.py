@@ -266,7 +266,12 @@ class RuntimeSupervisor:
                 client=self.client,
             )
             registry = create_default_registry(tool_ctx)
-            engine.attach_tools(registry, owner_id=self.owner_id, tz_str=self.tz_str)
+            engine.attach_tools(
+                registry,
+                owner_id=self.owner_id,
+                tz_str=self.tz_str,
+                tool_context=tool_ctx,
+            )
             trace("AI_TOOLS_WIRED", gen=self.client_generation)
             logger.info("AI tool runtime wired (gen=%d)", self.client_generation)
         except Exception as exc:

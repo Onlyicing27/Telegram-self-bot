@@ -154,6 +154,7 @@ class Dispatcher:
         all_tool_results: list[dict[str, Any]] = []
         accumulated_usage: dict[str, int] = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
         accumulated_finish_reasons: list[str] = []
+        tool_round_limit_reached = False
 
         for round_num in range(MAX_TOOL_ROUNDS):
             if not response.success or not response.tool_calls or not self._tool_executor:
@@ -200,6 +201,15 @@ class Dispatcher:
             response = cont_response
             messages = continuation_messages
 
+        if response.success and response.tool_calls and self._tool_executor and len(metadata.get("tool_results", [])) >= 0:
+            tool_round_limit_reached = True
+            metadata["tool_round_limit_reached"] = True
+            metadata["pending_tool_calls"] = len(response.tool_calls)
+            warnings.append(
+                f"Tool execution stopped after the maximum of {MAX_TOOL_ROUNDS} rounds."
+            )
+            errors.append("tool_round_limit_reached")
+
         if accumulated_finish_reasons:
             metadata["continuation_finish_reasons"] = accumulated_finish_reasons
 
@@ -241,7 +251,7 @@ class Dispatcher:
                         warnings.append(f"tool_{te.get('tool_name', '?')}: {err_type}")
 
         result = EngineResult(
-            success=bool(response.success),
+            success=bool(response.success) and not tool_round_limit_reached,
             provider=response.provider_name or provider_name,
             model=self._provider_manager.get_active().config.model or response.provider_name or provider_name,
             latency=latency,

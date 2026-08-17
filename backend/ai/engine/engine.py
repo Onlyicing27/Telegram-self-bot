@@ -161,11 +161,27 @@ class Engine:
     def memory_manager(self) -> MemoryManager:
         return self._memory_manager
 
-    def attach_tools(self, registry: ToolRegistry, owner_id: int = 0, tz_str: str = "UTC") -> None:
-        """Attach or replace the tool registry and executor at runtime."""
+    def attach_tools(self, registry: ToolRegistry, owner_id: int = 0, tz_str: str = "UTC", tool_context: "ToolContext | None" = None) -> None:
+        """Attach or replace the tool registry and executor at runtime.
+
+        If ``tool_context`` is provided, its ``telegram`` and ``client``
+        fields are preserved so the real TelegramAPI facade and Telethon
+        client reach every tool execution.  When omitted, a minimal context
+        with ``telegram=None`` is used (test/offline only).
+        """
         from backend.ai.tools.context import ToolContext
         self._tool_registry = registry
-        self._tool_executor = ToolExecutor(registry, ToolContext(telegram=None, owner_id=owner_id, tz_str=tz_str))
+        if tool_context is not None:
+            ctx = ToolContext(
+                telegram=tool_context.telegram,
+                owner_id=owner_id or tool_context.owner_id,
+                tz_str=tz_str or tool_context.tz_str,
+                client=tool_context.client,
+                extra=tool_context.extra,
+            )
+        else:
+            ctx = ToolContext(telegram=None, owner_id=owner_id, tz_str=tz_str)
+        self._tool_executor = ToolExecutor(registry, ctx)
 
 
 # ── Module-level convenience ──

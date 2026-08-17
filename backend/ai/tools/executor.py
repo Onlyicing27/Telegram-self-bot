@@ -158,7 +158,17 @@ class ToolExecutor:
         """Execute a single tool call. Never raises."""
         ctx = context or self._context
         tool_name = call.get("name", "") or call.get("tool", "")
-        arguments = call.get("arguments", {}) or call.get("parameters", {})
+        if call.get("_malformed_arguments"):
+            return ToolExecutionResult(
+                tool_name=tool_name or "(unknown)",
+                success=False,
+                message="Tool call arguments were malformed and were not executed.",
+                error="malformed_arguments",
+            )
+
+        arguments = call.get("arguments")
+        if arguments is None:
+            arguments = call.get("parameters", {})
 
         if not tool_name:
             return ToolExecutionResult(
