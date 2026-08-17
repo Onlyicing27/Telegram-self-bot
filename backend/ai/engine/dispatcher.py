@@ -201,12 +201,13 @@ class Dispatcher:
             response = cont_response
             messages = continuation_messages
 
-        if response.success and response.tool_calls and self._tool_executor and len(metadata.get("tool_results", [])) >= 0:
+        if response.success and response.tool_calls and self._tool_executor:
             tool_round_limit_reached = True
             metadata["tool_round_limit_reached"] = True
             metadata["pending_tool_calls"] = len(response.tool_calls)
             warnings.append(
-                f"Tool execution stopped after the maximum of {MAX_TOOL_ROUNDS} rounds."
+                f"Tool execution stopped after the maximum of {MAX_TOOL_ROUNDS} rounds; "
+                f"{len(response.tool_calls)} pending tool call(s) were not executed."
             )
             errors.append("tool_round_limit_reached")
 
@@ -375,6 +376,7 @@ class Dispatcher:
                     },
                 }
                 for tc in response.tool_calls
+                if not tc.get("_malformed_arguments")
             ]
         messages.append(assistant_msg)
 

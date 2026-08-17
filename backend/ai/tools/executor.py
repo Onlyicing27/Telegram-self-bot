@@ -165,7 +165,6 @@ class ToolExecutor:
                 message="Tool call arguments were malformed and were not executed.",
                 error="malformed_arguments",
             )
-
         arguments = call.get("arguments")
         if arguments is None:
             arguments = call.get("parameters", {})
